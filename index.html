@@ -3,28 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner Pro V5.0 - Snapshot Mode</title>
+    <title>Smart Scanner V5.0 (Final)</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .container { background: white; width: 100%; max-width: 480px; padding: 20px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        /* Khung camera */
+        
+        /* Khung Camera */
         .camera-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 12px; overflow: hidden; position: relative; margin-bottom: 15px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
         video { width: 100%; height: 100%; object-fit: cover; }
-        /* Canvas dùng để đóng băng ảnh */
-        #photo-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 5; }
+        #photo-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 5; } /* Ảnh tĩnh */
 
         .input-group { margin-bottom: 15px; }
         input, select { width: 100%; padding: 12px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        /* Nút bấm chính */
-        .btn-main { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 30px; font-weight: 700; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(26,115,232,0.3); transition: 0.2s; }
+        
+        /* Nút bấm lớn */
+        .btn-main { width: 100%; padding: 16px; background: #1a73e8; color: white; border: none; border-radius: 30px; font-weight: 700; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(26,115,232,0.3); transition: 0.2s; }
         .btn-main:active { transform: scale(0.96); background: #1557b0; }
         
-        #result { min-height: 60px; max-height: 150px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; overflow-y: auto; margin-bottom: 15px; font-family: monospace; font-size: 13px; color: #333; line-height: 1.5; white-space: pre-wrap; }
-        #status { text-align: center; font-size: 13px; color: #666; margin-top: 10px; height: 20px;}
-        
-        /* Hiệu ứng quét khi chụp */
-        .scan-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; z-index: 10; pointer-events: none; }
+        #result { min-height: 80px; max-height: 200px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; overflow-y: auto; margin-bottom: 15px; font-family: monospace; font-size: 13px; color: #333; white-space: pre-wrap; }
+        #status { text-align: center; font-size: 13px; color: #666; margin-top: 10px; height: 20px; }
+
+        /* Hiệu ứng Flash khi chụp */
+        .flash-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 10; }
         @keyframes flashAnim { 0% { opacity: 0.8; } 100% { opacity: 0; } }
     </style>
 </head>
@@ -35,12 +36,11 @@
     
     <div class="camera-box">
         <video id="video" autoplay playsinline muted></video>
-        <canvas id="photo-canvas"></canvas> <div id="flash" class="scan-flash"></div>
+        <canvas id="photo-canvas"></canvas> <div id="flash" class="flash-effect"></div>
     </div>
 
     <div class="input-group">
-        <input type="text" id="webhookUrl" placeholder="Link Web App..." 
-               value="https://script.google.com/macros/s/11O-2z4TVPwGByJO-wFonIBOAdjY3MAkTMadbj89Qq-RGd_Lkw3zXa-64/exec" readonly style="background:#eee; color:#555">
+        <input type="text" id="webhookUrl" placeholder="Dán link Web App vào đây..." value="">
                
         <select id="filterMode">
             <option value="all">📝 Lấy tất cả văn bản</option>
@@ -48,9 +48,9 @@
         </select>
     </div>
 
-    <div id="result">Kết quả sẽ hiện ở đây...</div>
+    <div id="result">Hãy chụp ảnh để quét...</div>
 
-    <button id="btnAction" class="btn-main" onclick="handleMainAction()">
+    <button id="btnAction" class="btn-main" onclick="handleAction()">
         <span>📸</span> CHỤP ẢNH
     </button>
     
@@ -67,91 +67,87 @@
     const btnAction = document.getElementById('btnAction');
     const flash = document.getElementById('flash');
     
-    let isPhotoTaken = false; // Biến trạng thái: Đã chụp hay chưa?
+    let isCaptured = false;
 
-    // 1. Khởi động Camera
+    // 1. Mở Camera
     async function initCam() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment", width: {ideal: 1920}, height: {ideal: 1080} } // Ưu tiên độ phân giải cao
+                video: { facingMode: "environment", width: {ideal: 1920} } 
             });
             video.srcObject = stream;
             status.innerText = "Sẵn sàng chụp";
-        } catch(e) { status.innerHTML = "<b style='color:red'>Lỗi Camera! Cần HTTPS.</b>"; }
+        } catch(e) { status.innerHTML = "<b style='color:red'>Lỗi Camera!</b>"; }
     }
 
-    // 2. Xử lý nút bấm chính (Chụp hoặc Chụp lại)
-    function handleMainAction() {
-        if (!isPhotoTaken) {
-            takePhoto(); // Nếu chưa chụp -> Chụp
+    // 2. Xử lý nút bấm (Chụp / Chụp lại)
+    function handleAction() {
+        if (!isCaptured) {
+            capturePhoto();
         } else {
-            resetCamera(); // Nếu chụp rồi -> Quay lại camera
+            resetScan();
         }
     }
 
-    // 3. Hàm Chụp ảnh (Đóng băng màn hình)
-    async function takePhoto() {
-        // Hiệu ứng nháy flash
+    // 3. Chụp ảnh & Đóng băng
+    async function capturePhoto() {
+        // Hiệu ứng nháy đèn
         flash.style.animation = 'none';
-        flash.offsetHeight; /* trigger reflow */
-        flash.style.animation = 'flashAnim 0.5s forwards';
+        flash.offsetHeight; 
+        flash.style.animation = 'flashAnim 0.3s forwards';
 
-        // Đóng băng hình ảnh từ video sang canvas
+        // Vẽ video lên canvas tĩnh
         photoCanvas.width = video.videoWidth;
         photoCanvas.height = video.videoHeight;
         photoCanvas.getContext('2d').drawImage(video, 0, 0);
         
-        // Dừng video và hiện ảnh tĩnh
+        // Hiện ảnh tĩnh, ẩn video
         video.pause();
         photoCanvas.style.display = 'block';
-        isPhotoTaken = true;
+        isCaptured = true;
 
-        // Đổi nút thành Chụp lại
-        btnAction.innerHTML = "<span>🔄</span> CHỤP LẠI";
-        btnAction.style.background = "#5f6368"; // Đổi màu nút cho khác biệt
+        // Đổi nút bấm
+        btnAction.innerHTML = "<span>🔄</span> QUÉT LẠI";
+        btnAction.style.background = "#5f6368";
         
-        status.innerText = "⏳ Đang xử lý ảnh...";
-        resultBox.innerText = "Đang đọc chữ từ ảnh tĩnh...";
-
-        // Bắt đầu xử lý OCR trên ảnh tĩnh
-        processStaticImage();
+        status.innerText = "⏳ Đang đọc chữ...";
+        resultBox.innerText = "Đang phân tích hình ảnh...";
+        
+        // Bắt đầu OCR
+        processOCR();
     }
 
-    // 4. Hàm quay lại Camera (Chụp lại)
-    function resetCamera() {
-        video.play(); // Chạy lại video
-        photoCanvas.style.display = 'none'; // Ẩn ảnh tĩnh
-        isPhotoTaken = false;
-        
-        // Đổi lại nút Chụp
+    // 4. Quay lại Camera
+    function resetScan() {
+        video.play();
+        photoCanvas.style.display = 'none';
+        isCaptured = false;
         btnAction.innerHTML = "<span>📸</span> CHỤP ẢNH";
         btnAction.style.background = "#1a73e8";
-        
-        resultBox.innerText = "Kết quả sẽ hiện ở đây...";
         status.innerText = "Sẵn sàng chụp";
+        resultBox.innerText = "Hãy chụp ảnh để quét...";
         resultBox.style.borderColor = "#e9ecef";
     }
 
-    // 5. Xử lý OCR (Giống bản cũ nhưng chạy 1 lần)
-    async function processStaticImage() {
-        const processCanvas = document.getElementById('process-canvas');
-        processCanvas.width = photoCanvas.width;
-        processCanvas.height = photoCanvas.height;
-        const ctx = processCanvas.getContext('2d');
+    // 5. Xử lý OCR & Gửi
+    async function processOCR() {
+        const pCanvas = document.getElementById('process-canvas');
+        pCanvas.width = photoCanvas.width;
+        pCanvas.height = photoCanvas.height;
+        const ctx = pCanvas.getContext('2d');
         ctx.drawImage(photoCanvas, 0, 0);
 
-        // Tăng tương phản (Pre-process)
-        const imgData = ctx.getImageData(0,0, processCanvas.width, processCanvas.height);
+        // Xử lý ảnh: Tăng tương phản để chữ rõ hơn
+        const imgData = ctx.getImageData(0,0, pCanvas.width, pCanvas.height);
         const d = imgData.data;
         for(let i=0; i<d.length; i+=4) {
-            const c = (d[i]+d[i+1]+d[i+2])/3 > 110 ? 255 : 0;
+            const c = (d[i]+d[i+1]+d[i+2])/3 > 100 ? 255 : 0; // Đen trắng
             d[i]=d[i+1]=d[i+2]=c;
         }
         ctx.putImageData(imgData,0,0);
 
-        // Chạy Tesseract
         const worker = await Tesseract.createWorker('vie');
-        const ret = await worker.recognize(processCanvas);
+        const ret = await worker.recognize(pCanvas);
         await worker.terminate();
 
         const text = ret.data.text.trim();
@@ -159,31 +155,36 @@
             resultBox.innerText = text;
             sendData(text);
         } else {
-            resultBox.innerText = "Không đọc được chữ. Ảnh có thể bị mờ.";
-            status.innerText = "⚠️ Hãy thử chụp lại";
+            resultBox.innerText = "Không đọc được chữ nào. Hãy chụp lại gần hơn!";
+            status.innerText = "⚠️ Ảnh mờ";
         }
     }
 
-    // 6. Gửi dữ liệu (Fire & Forget)
+    // 6. Gửi dữ liệu (Siêu tốc)
     function sendData(text) {
-        const url = document.getElementById('webhookUrl').value;
+        const url = document.getElementById('webhookUrl').value.trim();
         const mode = document.getElementById('filterMode').value;
-        status.innerText = "🚀 Đang gửi lên Sheet...";
         
-        if(url.length > 10) {
-            fetch(url, {
-                method: 'POST', mode: 'no-cors',
-                headers: {'Content-Type': 'text/plain'},
-                body: JSON.stringify({
-                    text: text,
-                    device: /Android/i.test(navigator.userAgent) ? "Android" : "iPhone",
-                    filterMode: mode
-                })
-            });
+        if(url.length < 10) {
+            alert("⚠️ Chưa dán link Web App!");
+            return;
         }
+
+        status.innerText = "🚀 Đang gửi dữ liệu...";
+        
+        fetch(url, {
+            method: 'POST', mode: 'no-cors',
+            headers: {'Content-Type': 'text/plain'},
+            body: JSON.stringify({
+                text: text,
+                device: /Android/i.test(navigator.userAgent) ? "Android" : "iPhone",
+                filterMode: mode
+            })
+        });
+
         setTimeout(() => {
             status.innerText = "✅ Đã gửi xong!";
-            resultBox.style.borderColor = "green";
+            resultBox.style.border = "2px solid green";
         }, 800);
     }
     
