@@ -46,7 +46,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* Khung Camera chuyên nghiệp */
         .camera-wrapper {
             position: relative;
             width: 100%;
@@ -64,7 +63,6 @@
             object-fit: cover;
         }
 
-        /* Hiệu ứng tia quét Google */
         .scan-line {
             position: absolute;
             top: 0;
@@ -114,6 +112,7 @@
             border: 1px solid #e8eaed;
             white-space: pre-wrap;
             line-height: 1.5;
+            user-select: text;
         }
 
         .btn-main {
@@ -176,7 +175,7 @@
 
     <input type="text" id="webhookUrl" class="input-field" placeholder="Dán link nhận dữ liệu tại đây...">
     
-    <div id="result-box" contenteditable="true">Văn bản quét được sẽ hiện ở đây...</div>
+    <div id="result-box">Văn bản quét được sẽ hiện ở đây...</div>
 
     <button class="btn-main btn-primary" onclick="startOCR()">
         <span>🔍</span> QUÉT VĂN BẢN
@@ -197,12 +196,11 @@
     const statusText = document.getElementById('status-text');
     const sendBtn = document.getElementById('sendBtn');
 
-    // Cấu hình Camera - Ép buộc chọn camera sau (environment)
     async function initCamera() {
         const constraints = {
             audio: false,
             video: {
-                facingMode: { ideal: "environment" }, // Ưu tiên camera sau
+                facingMode: { ideal: "environment" },
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
             }
@@ -212,7 +210,6 @@
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
             
-            // Một số dòng máy cần đợi video sẵn sàng mới hiển thị
             video.onloadedmetadata = () => {
                 video.play();
                 statusText.innerText = "Camera sau đã sẵn sàng";
@@ -223,25 +220,21 @@
         }
     }
 
-    // Xử lý quét chữ
     async function startOCR() {
         if (!video.srcObject) return alert("Camera chưa sẵn sàng!");
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Chụp ảnh từ Video
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Hiển thị hiệu ứng quét
         scanLine.style.display = "block";
         statusText.innerText = "Đang nhận diện chữ viết...";
         resultBox.innerText = "Đang phân tích...";
         
         try {
-            // Nhận diện Tiếng Việt + Tiếng Anh
             const worker = await Tesseract.createWorker('vie+eng');
             const ret = await worker.recognize(canvas);
             await worker.terminate();
@@ -264,10 +257,9 @@
         }
     }
 
-    // Gửi dữ liệu qua Link
     async function pushData() {
         const url = document.getElementById('webhookUrl').value;
-        const textContent = resultBox.innerText;
+        const textContent = resultBox.textContent;
 
         if (!url) {
             alert("Vui lòng dán link đích (Google Script/Webhook)!");
@@ -277,7 +269,6 @@
         statusText.innerText = "Đang gửi dữ liệu đi...";
         
         try {
-            // Sử dụng no-cors để gửi nhanh đến các Webhook/Script mà không bị chặn
             await fetch(url, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -296,7 +287,6 @@
         }
     }
 
-    // Khởi động
     initCamera();
 </script>
 
