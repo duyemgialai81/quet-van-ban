@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Google Lens Style OCR</title>
+    <title>Google Lens Style OCR - Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -25,37 +25,37 @@
         }
 
         .container {
-            width: 90%;
+            width: 92%;
             max-width: 400px;
             background: white;
             padding: 24px;
-            border-radius: 16px;
+            border-radius: 20px;
             box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px rgba(60,64,67,0.15);
         }
 
         header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         header h1 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 500;
             margin: 0;
             color: var(--google-grey);
+            letter-spacing: 0.5px;
         }
 
-        /* Camera Frame chuyên nghiệp */
+        /* Khung Camera chuyên nghiệp */
         .camera-wrapper {
             position: relative;
             width: 100%;
             aspect-ratio: 1 / 1;
             background: #000;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
             margin-bottom: 20px;
-            border: 4px solid #fff;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
 
         video {
@@ -64,67 +64,72 @@
             object-fit: cover;
         }
 
-        /* Hiệu ứng quét của Google */
+        /* Hiệu ứng tia quét Google */
         .scan-line {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 2px;
-            background: var(--google-blue);
+            height: 3px;
+            background: linear-gradient(to right, transparent, var(--google-blue), transparent);
             box-shadow: 0 0 15px var(--google-blue);
-            animation: scan 3s infinite linear;
+            animation: scan 2.5s infinite ease-in-out;
             display: none;
+            z-index: 10;
         }
 
         @keyframes scan {
-            0% { top: 0; }
-            100% { top: 100%; }
+            0% { top: 5%; }
+            50% { top: 90%; }
+            100% { top: 5%; }
         }
 
-        /* Input style Google */
         .input-field {
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 16px;
             margin-bottom: 12px;
             border: 1px solid #dadce0;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 14px;
             box-sizing: border-box;
-            transition: border 0.2s;
+            transition: all 0.3s;
         }
 
         .input-field:focus {
             border: 2px solid var(--google-blue);
             outline: none;
-            padding: 11px 15px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         #result-box {
             width: 100%;
             height: 100px;
             background: #f1f3f4;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 12px;
             font-size: 14px;
             color: #3c4043;
             overflow-y: auto;
             margin-bottom: 16px;
-            border: 1px dashed #bdc1c6;
+            border: 1px solid #e8eaed;
             white-space: pre-wrap;
+            line-height: 1.5;
         }
 
-        /* Button style */
         .btn-main {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             border: none;
-            border-radius: 24px;
-            font-size: 14px;
+            border-radius: 28px;
+            font-size: 15px;
             font-weight: 500;
             cursor: pointer;
-            transition: background 0.2s, box-shadow 0.2s;
-            margin-bottom: 8px;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-primary {
@@ -132,9 +137,9 @@
             color: white;
         }
 
-        .btn-primary:hover {
-            background-color: #185abc;
-            box-shadow: 0 1px 3px rgba(66,133,244,0.3);
+        .btn-primary:active {
+            transform: scale(0.98);
+            background-color: #1765cc;
         }
 
         .btn-secondary {
@@ -144,8 +149,9 @@
         }
 
         .btn-secondary:disabled {
+            background-color: #fafafa;
             color: #bdc1c6;
-            cursor: not-allowed;
+            border: 1px solid #f1f3f4;
         }
 
         #status-text {
@@ -164,18 +170,22 @@
     </header>
     
     <div class="camera-wrapper">
-        <video id="video" autoplay playsinline></video>
+        <video id="video" autoplay playsinline muted></video>
         <div id="scan-line" class="scan-line"></div>
     </div>
 
     <input type="text" id="webhookUrl" class="input-field" placeholder="Dán link nhận dữ liệu tại đây...">
     
-    <div id="result-box" contenteditable="true">Kết quả quét sẽ hiển thị ở đây...</div>
+    <div id="result-box" contenteditable="true">Văn bản quét được sẽ hiện ở đây...</div>
 
-    <button class="btn-main btn-primary" onclick="startOCR()">QUÉT VĂN BẢN</button>
-    <button class="btn-main btn-secondary" id="sendBtn" onclick="pushData()" disabled>ĐẨY LÊN LINK</button>
+    <button class="btn-main btn-primary" onclick="startOCR()">
+        <span>🔍</span> QUÉT VĂN BẢN
+    </button>
+    <button class="btn-main btn-secondary" id="sendBtn" onclick="pushData()" disabled>
+        <span>📤</span> ĐẨY LÊN LINK
+    </button>
     
-    <div id="status-text">Đang chờ camera...</div>
+    <div id="status-text">Đang khởi tạo camera sau...</div>
 </div>
 
 <canvas id="canvas" style="display:none;"></canvas>
@@ -187,66 +197,106 @@
     const statusText = document.getElementById('status-text');
     const sendBtn = document.getElementById('sendBtn');
 
-    // Mở Camera
+    // Cấu hình Camera - Ép buộc chọn camera sau (environment)
     async function initCamera() {
+        const constraints = {
+            audio: false,
+            video: {
+                facingMode: { ideal: "environment" }, // Ưu tiên camera sau
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" } 
-            });
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
-            statusText.innerText = "Camera sẵn sàng";
+            
+            // Một số dòng máy cần đợi video sẵn sàng mới hiển thị
+            video.onloadedmetadata = () => {
+                video.play();
+                statusText.innerText = "Camera sau đã sẵn sàng";
+            };
         } catch (err) {
-            statusText.innerText = "Lỗi: Không thể mở camera (Cần HTTPS)";
+            console.error("Camera Error: ", err);
+            statusText.innerHTML = "<span style='color:red'>Lỗi: Không truy cập được Camera sau. Hãy dùng HTTPS!</span>";
         }
     }
 
-    // Nhận diện OCR
+    // Xử lý quét chữ
     async function startOCR() {
+        if (!video.srcObject) return alert("Camera chưa sẵn sàng!");
+
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        
+        // Chụp ảnh từ Video
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+        // Hiển thị hiệu ứng quét
         scanLine.style.display = "block";
-        statusText.innerText = "Đang phân tích chữ...";
+        statusText.innerText = "Đang nhận diện chữ viết...";
+        resultBox.innerText = "Đang phân tích...";
         
         try {
-            const { data: { text } } = await Tesseract.recognize(canvas, 'vie+eng');
-            resultBox.innerText = text.trim();
-            statusText.innerText = "Quét hoàn tất!";
-            sendBtn.disabled = false;
+            // Nhận diện Tiếng Việt + Tiếng Anh
+            const worker = await Tesseract.createWorker('vie+eng');
+            const ret = await worker.recognize(canvas);
+            await worker.terminate();
+
+            const text = ret.data.text.trim();
+            
+            if (text) {
+                resultBox.innerText = text;
+                statusText.innerText = "Quét thành công!";
+                sendBtn.disabled = false;
+            } else {
+                resultBox.innerText = "Không tìm thấy văn bản nào. Hãy thử lại!";
+                statusText.innerText = "Quét thất bại";
+            }
         } catch (e) {
-            statusText.innerText = "Lỗi khi quét!";
+            statusText.innerText = "Lỗi xử lý OCR!";
+            console.error(e);
         } finally {
             scanLine.style.display = "none";
         }
     }
 
-    // Gửi dữ liệu đi
+    // Gửi dữ liệu qua Link
     async function pushData() {
         const url = document.getElementById('webhookUrl').value;
+        const textContent = resultBox.innerText;
+
         if (!url) {
-            alert("Vui lòng dán link đích trước!");
+            alert("Vui lòng dán link đích (Google Script/Webhook)!");
             return;
         }
 
-        statusText.innerText = "Đang gửi dữ liệu...";
+        statusText.innerText = "Đang gửi dữ liệu đi...";
+        
         try {
-            // Dùng no-cors để bypass nhanh nếu link là script google hoặc webhook đơn giản
+            // Sử dụng no-cors để gửi nhanh đến các Webhook/Script mà không bị chặn
             await fetch(url, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: resultBox.innerText, time: new Date() })
+                body: JSON.stringify({ 
+                    text: textContent, 
+                    device: "Mobile Scanner",
+                    timestamp: new Date().toISOString() 
+                })
             });
-            statusText.innerText = "Gửi thành công!";
-            alert("Đã gửi dữ liệu lên link thành công!");
+            statusText.innerText = "Đã gửi thành công!";
+            alert("Dữ liệu đã được đẩy lên link!");
         } catch (e) {
-            statusText.innerText = "Lỗi gửi dữ liệu!";
+            statusText.innerText = "Lỗi khi gửi dữ liệu!";
+            alert("Gửi thất bại, kiểm tra lại link của bạn.");
         }
     }
 
+    // Khởi động
     initCamera();
 </script>
 
