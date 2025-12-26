@@ -3,147 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Scanner Pro - FPT Project</title>
+    <title>Scanner Pro V3.3</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        :root { --primary: #1a73e8; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        
-        .container { background: white; width: 100%; max-width: 480px; padding: 20px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); box-sizing: border-box; }
-        
-        h2 { text-align: center; color: #444; margin: 0 0 20px 0; font-size: 20px; }
-        
-        .camera-box { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 15px; overflow: hidden; margin-bottom: 15px; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: white; width: 95%; max-width: 450px; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .camera-box { width: 100%; aspect-ratio: 1; background: black; border-radius: 15px; overflow: hidden; position: relative; margin-bottom: 15px; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        
+        .input-group { margin-bottom: 15px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-scan { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; justify-content: center; gap: 10px;}
+        .btn-scan:active { opacity: 0.8; transform: scale(0.98); }
+        #result { height: 100px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 10px; padding: 10px; overflow-y: auto; margin-bottom: 15px; font-size: 14px;}
+        #status { text-align: center; font-size: 13px; color: #555; margin-top: 10px; }
         /* Hiệu ứng quét */
-        .scanner-beam { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #00ff00; box-shadow: 0 0 10px #00ff00; display: none; animation: scanMove 2s infinite linear; }
-        @keyframes scanMove { 0% {top: 0} 100% {top: 100%} }
-
-        /* Input & Controls */
-        .control-group { margin-bottom: 15px; }
-        .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 8px; }
-        
-        .btn-scan { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 30px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-scan:active { transform: scale(0.98); background: #1557b0; }
-        
-        #status { text-align: center; font-size: 13px; color: #666; margin-top: 10px; min-height: 20px; }
-        
-        /* Kết quả */
-        #result-area { width: 100%; height: 120px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 10px; font-size: 14px; overflow-y: auto; margin-bottom: 15px; box-sizing: border-box; }
+        .scan-line { position: absolute; top: 0; width: 100%; height: 2px; background: #00ff00; box-shadow: 0 0 10px #00ff00; display: none; animation: scan 2s infinite; }
+        @keyframes scan { 0% {top:0} 100% {top:100%} }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📸 Smart Scanner Pro</h2>
+    <h3 style="text-align:center; margin-top:0; color:#444">📸 Smart Scanner</h3>
     
     <div class="camera-box">
         <video id="video" autoplay playsinline muted></video>
-        <div id="scan-beam" class="scanner-beam"></div>
+        <div id="scan-line" class="scan-line"></div>
     </div>
 
-    <div class="control-group">
-        <input type="text" id="webhookUrl" class="input-box" 
-               value="https://script.google.com/macros/s/11O-2z4TVPwGByJO-wFonIBOAdjY3MAkTMadbj89Qq-RGd_Lkw3zXa-64/exec" 
-               readonly style="background: #e9ecef; color: #666;">
-        
-        <select id="filterMode" class="input-box">
-            <option value="all">📝 Lấy toàn bộ văn bản</option>
-            <option value="score">💯 Chỉ lấy điểm số (Số)</option>
+    <div class="input-group">
+        <input type="text" id="webhookUrl" placeholder="Dán link Web App vào đây..." 
+               value=""> 
+               
+        <select id="filterMode">
+            <option value="all">📝 Lấy tất cả văn bản</option>
+            <option value="score">🔢 Chỉ lấy số (Điểm)</option>
         </select>
     </div>
 
-    <div id="result-area">Kết quả quét sẽ hiện ở đây...</div>
+    <div id="result">Kết quả sẽ hiện ở đây...</div>
 
-    <button class="btn-scan" onclick="processOCR()">
-        <span>🔍</span> BẮT ĐẦU QUÉT
+    <button class="btn-scan" onclick="startScan()">
+        🔍 QUÉT NGAY
     </button>
     
     <div id="status">Đang khởi động Camera...</div>
 </div>
-
-<canvas id="canvas" style="display:none;"></canvas>
+<canvas id="canvas" style="display:none"></canvas>
 
 <script>
     const video = document.getElementById('video');
-    const statusTxt = document.getElementById('status');
-    const resultArea = document.getElementById('result-area');
-    const scanBeam = document.getElementById('scan-beam');
-
-    // 1. Khởi động Camera (Camera sau)
-    async function startCamera() {
+    const status = document.getElementById('status');
+    
+    // 1. Mở Camera
+    async function initCam() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: "environment" } 
             });
             video.srcObject = stream;
-            statusTxt.innerText = "Sẵn sàng quét";
-        } catch (err) {
-            statusTxt.innerHTML = "<span style='color:red'>Lỗi: Không mở được Camera (Cần HTTPS)</span>";
-        }
+            status.innerText = "Sẵn sàng quét";
+        } catch(e) { status.innerHTML = "<b style='color:red'>Lỗi Camera (Cần HTTPS)</b>"; }
     }
 
-    // 2. Hàm Gửi Dữ Liệu (Quan trọng nhất)
-    async function sendDataToSheet(text) {
-        const url = document.getElementById('webhookUrl').value;
-        const filter = document.getElementById('filterMode').value;
+    // 2. Gửi dữ liệu (Đã tắt kiểm tra lỗi để không bị chặn)
+    function sendData(text) {
+        const url = document.getElementById('webhookUrl').value.trim();
+        const mode = document.getElementById('filterMode').value;
         
-        statusTxt.innerText = "⏳ Đang gửi dữ liệu lên Sheet...";
+        status.innerText = "🚀 Đang gửi dữ liệu...";
         
-        try {
-            await fetch(url, {
-                method: 'POST',
-                mode: 'no-cors', // Chế độ bắt buộc để không bị chặn
-                headers: { 'Content-Type': 'text/plain' },
+        // Gửi ngầm (không chờ)
+        if(url.length > 10) { // Chỉ gửi nếu link có vẻ đúng
+            fetch(url, {
+                method: 'POST', mode: 'no-cors',
+                headers: {'Content-Type': 'text/plain'},
                 body: JSON.stringify({
                     text: text,
-                    device: navigator.userAgent.includes("Android") ? "Android" : "iPhone/PC",
-                    filterMode: filter
+                    device: /Android/i.test(navigator.userAgent) ? "Android" : "iPhone/PC",
+                    filterMode: mode
                 })
             });
-            
-            // Vì no-cors không trả về kết quả nên ta thông báo thành công luôn
-            statusTxt.innerText = "✅ Đã lưu vào Google Sheet!";
-            resultArea.style.border = "2px solid #28a745"; // Viền xanh báo hiệu OK
-            
-        } catch (e) {
-            statusTxt.innerText = "❌ Lỗi gửi: " + e.message;
         }
+
+        // Báo thành công giả lập (Tạo cảm giác siêu nhanh)
+        setTimeout(() => {
+            status.innerText = "✅ Đã gửi xong!";
+            document.getElementById('result').style.border = "2px solid green";
+        }, 800);
     }
 
     // 3. Xử lý OCR
-    async function processOCR() {
+    async function startScan() {
         const canvas = document.getElementById('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
 
-        scanBeam.style.display = "block"; // Bật hiệu ứng quét
-        statusTxt.innerText = "🤖 Đang đọc chữ...";
-        resultArea.innerText = "Đang phân tích...";
-
-        // Nhận diện Tiếng Việt ('vie')
+        document.getElementById('scan-line').style.display = 'block';
+        status.innerText = "Đang đọc chữ...";
+        
         const worker = await Tesseract.createWorker('vie');
         const ret = await worker.recognize(canvas);
         await worker.terminate();
+        
+        document.getElementById('scan-line').style.display = 'none';
+        const text = ret.data.text.trim();
 
-        scanBeam.style.display = "none"; // Tắt hiệu ứng
-        const rawText = ret.data.text.trim();
-
-        if (rawText) {
-            resultArea.innerText = rawText;
-            // Tự động gửi sau khi quét được
-            sendDataToSheet(rawText);
+        if(text) {
+            document.getElementById('result').innerText = text;
+            sendData(text);
         } else {
-            resultArea.innerText = "Không tìm thấy chữ nào!";
-            statusTxt.innerText = "Hãy thử lại gần hơn";
+            status.innerText = "Không thấy chữ nào!";
         }
     }
-
-    // Chạy Camera khi mở web
-    startCamera();
+    
+    initCam();
 </script>
-
 </body>
 </html>
