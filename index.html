@@ -115,6 +115,22 @@
             user-select: text;
         }
 
+        #error-box {
+            width: 100%;
+            min-height: 50px;
+            background: #fff3cd;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 12px;
+            color: #856404;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            border: 1px solid #ffeaa7;
+            white-space: pre-wrap;
+            line-height: 1.4;
+            font-family: 'Courier New', monospace;
+        }
+
         .btn-main {
             width: 100%;
             padding: 14px;
@@ -175,7 +191,15 @@
 
     <input type="text" id="webhookUrl" class="input-field" placeholder="Dán link nhận dữ liệu tại đây...">
     
+    <select id="filterMode" class="input-field">
+        <option value="all">Lấy tất cả văn bản</option>
+        <option value="score">Chỉ lấy cột điểm (số)</option>
+        <option value="subject_score">Lấy tên môn + điểm</option>
+    </select>
+    
     <div id="result-box">Văn bản quét được sẽ hiện ở đây...</div>
+    
+    <div id="error-box">Không có lỗi</div>
 
     <button class="btn-main btn-primary" onclick="startOCR()">
         <span>🔍</span> QUÉT VĂN BẢN
@@ -193,8 +217,23 @@
     const video = document.getElementById('video');
     const scanLine = document.getElementById('scan-line');
     const resultBox = document.getElementById('result-box');
+    const errorBox = document.getElementById('error-box');
     const statusText = document.getElementById('status-text');
     const sendBtn = document.getElementById('sendBtn');
+
+    function logError(msg) {
+        errorBox.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        errorBox.style.background = '#ffe0e0';
+        errorBox.style.borderColor = '#ff6b6b';
+        errorBox.style.color = '#c92a2a';
+    }
+
+    function logSuccess(msg) {
+        errorBox.innerText = `[${new Date().toLocaleTimeString()}] ✅ ${msg}`;
+        errorBox.style.background = '#d4edda';
+        errorBox.style.borderColor = '#28a745';
+        errorBox.style.color = '#155724';
+    }
 
     async function initCamera() {
         const constraints = {
@@ -217,11 +256,15 @@
         } catch (err) {
             console.error("Camera Error: ", err);
             statusText.innerHTML = "<span style='color:red'>Lỗi: Không truy cập được Camera sau. Hãy dùng HTTPS!</span>";
+            logError(`Camera Error: ${err.message}`);
         }
     }
 
     async function startOCR() {
-        if (!video.srcObject) return alert("Camera chưa sẵn sàng!");
+        if (!video.srcObject) {
+            logError("Camera chưa sẵn sàng!");
+            return alert("Camera chưa sẵn sàng!");
+        }
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -233,13 +276,38 @@
         scanLine.style.display = "block";
         statusText.innerText = "Đang nhận diện chữ viết...";
         resultBox.innerText = "Đang phân tích...";
+        logSuccess("Bắt đầu quét...");
         
         try {
-            const worker = await Tesseract.createWorker('vie+eng');
+            const worker = await Tesseract.createWorker('vie+eng', 1, {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        statusText.innerText = `Đang xử lý: ${Math.round(m.progress * 100)}%`;
+                    }
+                }
+            });
+            
             const ret = await worker.recognize(canvas);
             await worker.terminate();
 
-            const text = ret.data.text.trim();
+            let text = ret.data.text.trim();
+            const filterMode = document.getElementById('filterMode').value;
+            
+            // Lọc dữ liệu theo chế độ
+            if (filterMode === 'score') {
+                // Chỉ lấy số (điểm)
+                const scores = text.match(/\d+(\.\d+)?/g);
+                text = scores ? scores.join('\n') : "Không tìm thấy điểm";
+                logSuccess(`Tìm thấy ${scores ? scores.length : 0} điểm`);
+            } else if (filterMode === 'subject_score') {
+                // Lấy tên môn + điểm (giả sử mỗi dòng có tên môn và số)
+                const lines = text.split('\n');
+                const filtered = lines.filter(line => /\d/.test(line));
+                text = filtered.join('\n');
+                logSuccess(`Lọc được ${filtered.length} dòng có điểm`);
+            } else {
+                logSuccess("Lấy toàn bộ văn bản");
+            }
             
             if (text) {
                 resultBox.innerText = text;
@@ -248,9 +316,11 @@
             } else {
                 resultBox.innerText = "Không tìm thấy văn bản nào. Hãy thử lại!";
                 statusText.innerText = "Quét thất bại";
+                logError("Không có dữ liệu sau khi lọc");
             }
         } catch (e) {
             statusText.innerText = "Lỗi xử lý OCR!";
+            logError(`OCR Error: ${e.message}`);
             console.error(e);
         } finally {
             scanLine.style.display = "none";
@@ -263,10 +333,12 @@
 
         if (!url) {
             alert("Vui lòng dán link đích (Google Script/Webhook)!");
+            logError("Chưa nhập URL webhook");
             return;
         }
 
         statusText.innerText = "Đang gửi dữ liệu đi...";
+        logSuccess("Đang gửi...");
         
         try {
             await fetch(url, {
@@ -280,9 +352,11 @@
                 })
             });
             statusText.innerText = "Đã gửi thành công!";
+            logSuccess("Gửi dữ liệu thành công!");
             alert("Dữ liệu đã được đẩy lên link!");
         } catch (e) {
             statusText.innerText = "Lỗi khi gửi dữ liệu!";
+            logError(`Push Error: ${e.message}`);
             alert("Gửi thất bại, kiểm tra lại link của bạn.");
         }
     }
